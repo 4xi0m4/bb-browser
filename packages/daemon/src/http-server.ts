@@ -15,6 +15,7 @@ import { SSEManager } from "./sse-manager.js";
 import { RequestManager } from "./request-manager.js";
 
 export interface HttpServerOptions {
+  host?: string;
   port?: number;
   onShutdown?: () => void;
 }
@@ -24,6 +25,7 @@ export interface HttpServerOptions {
  */
 export class HttpServer {
   private server: Server | null = null;
+  private host: string;
   private port: number;
   private startTime: number = 0;
   private onShutdown?: () => void;
@@ -32,6 +34,7 @@ export class HttpServer {
   readonly requestManager = new RequestManager();
 
   constructor(options: HttpServerOptions = {}) {
+    this.host = options.host ?? "127.0.0.1";
     this.port = options.port ?? DAEMON_PORT;
     this.onShutdown = options.onShutdown;
   }
@@ -49,7 +52,7 @@ export class HttpServer {
         reject(error);
       });
 
-      this.server.listen(this.port, "127.0.0.1", () => {
+      this.server.listen(this.port, this.host, () => {
         this.startTime = Date.now();
         resolve();
       });

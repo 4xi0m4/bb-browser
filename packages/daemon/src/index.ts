@@ -12,12 +12,13 @@
 
 import { parseArgs } from "node:util";
 import { writeFileSync, unlinkSync, existsSync } from "node:fs";
-import { DAEMON_PORT } from "@bb-browser/shared";
+import { DAEMON_PORT, DAEMON_HOST } from "@bb-browser/shared";
 import { HttpServer } from "./http-server.js";
 
 const PID_FILE_PATH = "/tmp/bb-browser.pid";
 
 interface DaemonOptions {
+  host: string;
   port: number;
 }
 
@@ -27,6 +28,11 @@ interface DaemonOptions {
 function parseOptions(): DaemonOptions {
   const { values } = parseArgs({
     options: {
+      host: {
+        type: "string",
+        short: "H",
+        default: DAEMON_HOST,
+      },
       port: {
         type: "string",
         short: "p",
@@ -48,6 +54,7 @@ Usage:
   bb-browser-daemon [options]
 
 Options:
+  -H, --host <host>  HTTP server host (default: ${DAEMON_HOST})
   -p, --port <port>  HTTP server port (default: ${DAEMON_PORT})
   -h, --help         Show this help message
 
@@ -61,6 +68,7 @@ Endpoints:
   }
 
   return {
+    host: values.host ?? DAEMON_HOST,
     port: parseInt(values.port ?? String(DAEMON_PORT), 10),
   };
 }
@@ -100,7 +108,8 @@ async function main(): Promise<void> {
   };
 
   // 创建 HTTP 服务器
-  const httpServer = new HttpServer({ 
+  const httpServer = new HttpServer({
+    host: options.host,
     port: options.port,
     onShutdown: shutdown,
   });
@@ -114,7 +123,7 @@ async function main(): Promise<void> {
   // 写入 PID 文件
   writePidFile();
 
-  console.error(`[Daemon] HTTP server listening on http://127.0.0.1:${options.port}`);
+  console.error(`[Daemon] HTTP server listening on http://${options.host}:${options.port}`);
   console.error("[Daemon] Waiting for extension connection...");
 }
 
