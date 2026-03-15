@@ -395,7 +395,7 @@ async function siteRecommend(options: SiteOptions): Promise<void> {
           example: site.example || `bb-browser site ${site.name}`,
         })),
       });
-    } else {
+    } else if (item.visits >= 5 && item.domain && !item.domain.includes('localhost') && item.domain.includes('.')) {
       notAvailable.push(item);
     }
   }
