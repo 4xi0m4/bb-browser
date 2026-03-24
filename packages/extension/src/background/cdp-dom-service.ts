@@ -361,6 +361,7 @@ export async function fillElement(
   tabId: number,
   ref: string,
   text: string,
+  slowly?: boolean,
 ): Promise<{ role: string; name?: string }> {
   const refInfo = await getRefInfo(tabId, ref);
   if (!refInfo) throw new Error(`Ref "${ref}" not found. Run snapshot first to get available refs.`);
@@ -394,8 +395,17 @@ export async function fillElement(
     throw new Error(`No locator for ref "${ref}"`);
   }
 
-  await cdp.insertText(tabId, text);
-  console.log('[CDPDOMService] Filled element:', { ref, role, name, textLength: text.length });
+  if (slowly) {
+    // Type character by character with random delays to simulate human typing
+    for (const char of text) {
+      await cdp.insertText(tabId, char);
+      // Random delay between 50-150ms to simulate human typing speed
+      await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+    }
+  } else {
+    await cdp.insertText(tabId, text);
+  }
+  console.log('[CDPDOMService] Filled element:', { ref, role, name, textLength: text.length, slowly });
   return { role, name };
 }
 
@@ -406,6 +416,7 @@ export async function typeElement(
   tabId: number,
   ref: string,
   text: string,
+  slowly?: boolean,
 ): Promise<{ role: string; name?: string }> {
   const refInfo = await getRefInfo(tabId, ref);
   if (!refInfo) throw new Error(`Ref "${ref}" not found. Run snapshot first to get available refs.`);
@@ -434,9 +445,13 @@ export async function typeElement(
 
   for (const char of text) {
     await cdp.pressKey(tabId, char);
+    if (slowly) {
+      // Random delay between 50-150ms to simulate human typing speed
+      await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+    }
   }
 
-  console.log('[CDPDOMService] Typed in element:', { ref, role, name, textLength: text.length });
+  console.log('[CDPDOMService] Typed in element:', { ref, role, name, textLength: text.length, slowly });
   return { role, name };
 }
 
@@ -657,6 +672,62 @@ export function setActiveFrameId(tabId: number, frameId: string | null): void {
 
 export function getActiveFrameId(tabId: number): string | null {
   return tabActiveFrameId.get(tabId) ?? null;
+}
+
+// ============================================================================
+// File Upload 操作
+// ============================================================================
+
+/**
+ * 上传文件到 input[type=file] 元素
+ * @param tabId 标签页 ID
+ * @param ref 元素引用（如果不指定则使用第一个 file input）
+ * @param files 文件路径列表
+ */
+export async function uploadFiles(
+  tabId: number,
+  files: string[],
+  ref?: string,
+): Promise<{ uploadedFiles: string[]; elements: number }> {
+  let backendNodeId: number | null = null;
+  
+  if (ref) {
+    // 如果提供了 ref，使用 refInfo 获取 backendNodeId
+    const refInfo = await getRefInfo(tabId, ref);
+    if (refInfo) {
+      backendNodeId = getBackendNodeId(refInfo);
+    }
+  }
+  
+  if (!backendNodeId) {
+    // 如果没有 ref，用 Runtime.evaluate 找 file input 并获取其 backendNodeId
+    const evalResult = await cdp.evaluate(tabId, `(() => {
+      const input = document.querySelector('input[type="file"]');
+      if (input && input.__cdpId) {
+        return { backendNodeId: input.__cdpId, multiple: input.multiple };
+      }
+      return null;
+    })()`);
+    
+    if (evalResult && typeof evalResult === 'string') {
+      const parsed = JSON.parse(evalResult);
+      if (parsed && parsed.backendNodeId) {
+        backendNodeId = parseInt(parsed.backendNodeId, 10);
+      }
+    }
+  }
+  
+  if (!backendNodeId) {
+    throw new Error('No file input element found on page');
+  }
+  
+  // 使用 CDP 的 setFileInputFiles
+  await cdp.setFileInputFiles(tabId, files, backendNodeId);
+  
+  return {
+    uploadedFiles: files,
+    elements: 1
+  };
 }
 
 // ============================================================================

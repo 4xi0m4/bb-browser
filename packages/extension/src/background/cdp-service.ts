@@ -360,6 +360,19 @@ export async function querySelector(
 }
 
 /**
+ * 查询所有匹配 CSS 选择器的节点
+ */
+export async function querySelectorAll(
+  tabId: number,
+  selector: string
+): Promise<{ nodeId: number; backendNodeId: number }[]> {
+  const result = await sendCommand(tabId, 'DOM.querySelectorAll', {
+    selector,
+  });
+  return result.nodeIds?.map((nodeId: number, backendNodeId: number) => ({ nodeId, backendNodeId })) || [];
+}
+
+/**
  * 获取元素的盒模型（用于计算点击位置）
  */
 export async function getBoxModel(tabId: number, nodeId: number): Promise<DOMGetBoxModelResult['model']> {
@@ -597,6 +610,27 @@ export async function pressKey(
  */
 export async function insertText(tabId: number, text: string): Promise<void> {
   await sendCommand(tabId, 'Input.insertText', { text });
+}
+
+// ============================================================================
+// File Input 域 - 文件上传
+// ============================================================================
+
+/**
+ * 设置文件输入框的文件（可上传多个文件）
+ * 使用 CDP 的 DOM.setFileInputFiles，可以绕过 JavaScript 的安全限制
+ */
+export async function setFileInputFiles(
+  tabId: number,
+  files: string[],
+  backendNodeId: number,
+  multiple?: boolean
+): Promise<void> {
+  await sendCommand(tabId, 'DOM.setFileInputFiles', {
+    files,
+    backendNodeId,
+    ...(multiple !== undefined ? { multiple } : {})
+  });
 }
 
 // ============================================================================

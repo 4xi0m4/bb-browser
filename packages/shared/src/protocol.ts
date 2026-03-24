@@ -12,6 +12,8 @@ export type ActionType =
   | "hover"
   | "fill"
   | "type"
+  | "upload"
+  
   | "check"
   | "uncheck"
   | "select"
@@ -50,6 +52,10 @@ export interface Request {
   ref?: string;
   /** 输入文本（fill 操作时使用） */
   text?: string;
+  /** 输入速度（fill/type 操作时使用，true = 逐字输入模拟人工打字）*/
+  slowly?: boolean;
+  /** 上传文件路径列表（upload 操作时使用） */
+  files?: string[];
   /** 获取属性类型（get 操作时使用） */
   attribute?: string;
   /** 截图保存路径（screenshot 操作时使用） */

@@ -93,6 +93,7 @@ bb-browser - AI Agent 浏览器自动化工具
 
 选项：
   --json               以 JSON 格式输出
+  --slowly            逐字输入模拟人工打字（fill/type 命令）
   --port <n>           指定 Chrome CDP 端口
   --openclaw           优先复用 OpenClaw 浏览器实例
   --jq <expr>          对 JSON 输出应用 jq 过滤（直接作用于数据，跳过 id/success 信封）
@@ -115,6 +116,7 @@ interface ParsedArgs {
     version: boolean;
     interactive: boolean;
     compact: boolean;
+    slowly: boolean;
     depth?: number;
     selector?: string;
     tab?: string;
@@ -140,6 +142,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       version: false,
       interactive: false,
       compact: false,
+      slowly: false,
     },
   };
 
@@ -151,6 +154,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === "--json") {
       result.flags.json = true;
+    } else if (arg === "--slowly") {
+      result.flags.slowly = true;
     } else if (arg === "--jq") {
       skipNext = true;
       const nextIdx = args.indexOf(arg) + 1;
@@ -334,7 +339,7 @@ async function main(): Promise<void> {
           console.error('示例：bb-browser fill @3 "hello world"');
           process.exit(1);
         }
-        await fillCommand(ref, text, { json: parsed.flags.json, tabId: globalTabId });
+        await fillCommand(ref, text, { json: parsed.flags.json, tabId: globalTabId, slowly: parsed.flags.slowly });
         break;
       }
 

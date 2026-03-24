@@ -13,6 +13,7 @@ import { ensureDaemonRunning } from "../daemon-manager.js";
 export interface FillOptions {
   json?: boolean;
   tabId?: number;
+  slowly?: boolean;
 }
 
 /**
@@ -50,6 +51,7 @@ export async function fillCommand(
     ref: parsedRef,
     text: text,
     tabId: options.tabId,
+    slowly: options.slowly,
   };
 
   // 发送请求

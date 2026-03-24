@@ -647,7 +647,7 @@ async function focusNode(targetId: string, backendNodeId: number): Promise<void>
   await sessionCommand(targetId, "DOM.focus", { backendNodeId });
 }
 
-async function insertTextIntoNode(targetId: string, backendNodeId: number, text: string, clearFirst: boolean): Promise<void> {
+async function insertTextIntoNode(targetId: string, backendNodeId: number, text: string, clearFirst: boolean, slowly?: boolean): Promise<void> {
   const resolved = await sessionCommand<{ object: { objectId: string } }>(targetId, "DOM.resolveNode", { backendNodeId });
 
   await sessionCommand(targetId, "Runtime.callFunctionOn", {
@@ -693,7 +693,16 @@ async function insertTextIntoNode(targetId: string, backendNodeId: number, text:
 
   if (text) {
     await focusNode(targetId, backendNodeId);
-    await sessionCommand(targetId, "Input.insertText", { text });
+    if (slowly) {
+      // Type character by character with random delays to simulate human typing
+      for (const char of text) {
+        await sessionCommand(targetId, "Input.insertText", { text: char });
+        // Random delay between 50-150ms to simulate human typing speed
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+      }
+    } else {
+      await sessionCommand(targetId, "Input.insertText", { text });
+    }
   }
 }
 
@@ -999,7 +1008,7 @@ async function dispatchRequest(request: Request): Promise<Response> {
       if (!request.ref) return fail(request.id, "Missing ref parameter");
       if (request.text == null) return fail(request.id, "Missing text parameter");
       const backendNodeId = await parseRef(request.ref);
-      await insertTextIntoNode(target.id, backendNodeId, request.text, request.action === "fill");
+      await insertTextIntoNode(target.id, backendNodeId, request.text, request.action === "fill", request.slowly);
       return ok(request.id, { value: request.text });
     }
     case "check":

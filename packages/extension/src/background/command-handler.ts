@@ -73,6 +73,10 @@ export async function handleCommand(command: CommandEvent): Promise<void> {
         result = await handleType(command);
         break;
 
+      case 'upload':
+        result = await handleUpload(command);
+        break;
+
       case 'check':
         result = await handleCheck(command);
         break;
@@ -433,6 +437,7 @@ async function handleHover(command: CommandEvent): Promise<CommandResult> {
 async function handleFill(command: CommandEvent): Promise<CommandResult> {
   const ref = command.ref as string;
   const text = command.text as string;
+  const slowly = command.slowly as boolean | undefined;
 
   if (!ref) {
     return {
@@ -461,11 +466,11 @@ async function handleFill(command: CommandEvent): Promise<CommandResult> {
     };
   }
 
-  console.log('[CommandHandler] Filling element:', ref, 'with text length:', text.length);
+  console.log('[CommandHandler] Filling element:', ref, 'with text length:', text.length, 'slowly:', slowly);
 
   try {
     // v2.0: 使用 CDP DOM Service
-    const elementInfo = await cdpDom.fillElement(activeTab.id, ref, text);
+    const elementInfo = await cdpDom.fillElement(activeTab.id, ref, text, slowly);
 
     return {
       id: command.id,
@@ -542,6 +547,55 @@ async function handleType(command: CommandEvent): Promise<CommandResult> {
       id: command.id,
       success: false,
       error: `Type failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * 处理 upload 命令 - 上传文件到 input[type=file]
+ */
+async function handleUpload(command: CommandEvent): Promise<CommandResult> {
+  const files = command.files as string[] | undefined;
+  const ref = command.ref as string | undefined;
+
+  if (!files || files.length === 0) {
+    return {
+      id: command.id,
+      success: false,
+      error: 'Missing files parameter for upload command',
+    };
+  }
+
+  // 获取目标标签页
+  const activeTab = await resolveTab(command);
+
+  if (!activeTab.id) {
+    return {
+      id: command.id,
+      success: false,
+      error: 'No active tab found',
+    };
+  }
+
+  console.log('[CommandHandler] Uploading files:', files, 'to tab:', activeTab.id, 'ref:', ref);
+
+  try {
+    // 使用 cdpDom 的 uploadFiles
+    const result = await cdpDom.uploadFiles(activeTab.id, files, ref);
+
+    return {
+      id: command.id,
+      success: true,
+      data: {
+        uploadedFiles: result.uploadedFiles,
+      },
+    };
+  } catch (error) {
+    console.error('[CommandHandler] Upload failed:', error);
+    return {
+      id: command.id,
+      success: false,
+      error: `Upload failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
